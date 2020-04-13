@@ -1,0 +1,18 @@
+{
+  "name": "misp",
+  "version": "0.0.1",
+  "description": "Mike's Lisp interpreter.",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "Lisp",
+    "Interpreter"
+  ],
+  "author": "SomeRandomDev49",
+  "license": "MIT",
+  "dependencies": {
+    "colors": "^1.4.0"
+  }
+}
