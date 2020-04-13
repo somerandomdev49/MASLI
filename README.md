@@ -36,10 +36,10 @@ Any - any type
 (map <key-value-pairs>) -> creates a map
 (list <values>) -> creates a list
 (& <exprs>) -> executes all of the expressions and returns the result of the last one.
-(panic <msg>) -> pAnIcS wItH tHe mEsSaGe :o
+(panic <msg>) -> pAnIcS wItH tHe mEsSaGe :O
 (tostr <expr>) -> returns colorful string representation of the object.
 (write <exprs>) -> writes all
-[no_output] -> makes sure that the result is not printed. 
+[no_output] -> makes sure that the final result is not printed. 
 ```
 
 example can be fount in `test.lisp`.
