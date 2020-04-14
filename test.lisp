@@ -1,5 +1,7 @@
 (&
+	(import test2)
 	(decl abcde (Num Any))
+	(warn )
 	(defun
 		abcde
 		(a b)
@@ -21,4 +23,5 @@
 	x
 	(= x 5)
 	x
+	(meme 4 3)
 )

@@ -102,7 +102,7 @@ class Parser
 	}
 	parseId(buf) {
 		if(!buf) buf = "";
-		while(is_valid_id(this.str[0]))
+		while(is_valid_id(this.str[0]) || is_valid_num(this.str[0]))
 		{ buf += this.str[0]; this.str = this.str.substr(1); }
 		return { type: 1, val: buf }
 	}
@@ -222,7 +222,7 @@ class Walker {
 	// 	console.log()
 	// 	t(name, value);
 	// }
-	constructor() {
+	constructor(moduleName) {
 		this.env = new Scope({ // $$ means no execution.
 			"+": fnc((a, b) => {
 				//console.log("add ", a.val(), ' ', b);
@@ -260,7 +260,7 @@ class Walker {
 					let l = this.walk(b);
 					//console.log(a);
 					if(l.type != this.env.get(a.val).type) this.env.o.panic.val.bind(this)("Types not compatible: " + this.env.get(a.val).type + " <- " + l.type);
-					this.env.set(a.val, this.walk(b));
+					else this.env.set(a.val, this.walk(b));
 				}
 			},
 			let: {
@@ -268,7 +268,36 @@ class Walker {
 				val: (t, n, v) => {
 					let l = this.walk(v);
 					if(l.type != t.val) this.env.o.panic.val.bind(this)("Types not compatible: " + t.val + " <- " + l.type);
-					this.env.setThis(n.val, l);
+					else this.env.setThis(n.val, l);
+				}
+			},
+			import: {
+				$$: true, type: "Fnc",
+				val: (...mpath) => {
+					//console.log("Import", ...mpath);
+					let path = "./" + mpath.map(x=>x.val).join("/") + ".lisp";
+					let mod = mpath.map(x=>x.val).join(" ");
+					console.log(mod, "in", this.loopingModules)
+					if(this.loopingModules.includes(mod)) { this.env.o.warn.val.bind(this)("Module is already imported in this system: (" + mod + ")"); return; }
+					//console.log("Import file", path);
+					this.loopingModules.push(mod);
+					if(!fs.existsSync(path)) { this.env.o.warn.val.bind(this)("Module does not exist: (" + mod + ")"); return; }
+					else {
+						//console.log("IMPORT!")
+						let filedata = fs.readFileSync(path).toString();
+						//console.log(filedata);
+						let w = new Walker(mod);
+						w.loopingModules = [...this.loopingModules];
+						//w.loopingModules.push(this.moduleName);
+						//console.log("WALK".blue.bold);
+						w.walk(new Parser(filedata).parse());
+						//console.log(w.env.o);
+						for(let obj of Object.entries(w.exports)) {
+							//console.log("import", obj)
+							if(obj[0] in this.env.o);
+							else this.env.o[obj[0]] = obj[1];
+						}
+					}
 				}
 			},
 			defun: {
@@ -282,7 +311,7 @@ class Walker {
 					}
 					this.env.setThis(name.val, fnc((...callArgs) => {
 						if(args.exprs.length != callArgs.length) this.env.o.panic.val.bind(this)("Not enough arguments!");
-						let walker = new Walker(); walker.env.parent = this.env;
+						let walker = new Walker(moduleName); walker.env.parent = this.env;
 						for(let i=0;i<args.exprs.length;i++) {
 							if(this.env.has("$" + name.val))
 							if((this.env.get("$" + name.val)[i].val != callArgs[i].type) && this.env.get("$" + name.val)[i].val != "Any") 
@@ -308,8 +337,12 @@ class Walker {
 			},
 			panic: fnc((...c) => {
 				let msg = c.map(e => (e.val instanceof Function)?e.val():e);
-				console.error("pAnIc:", ...msg);
+				console.error("pAnIc:".red.bold, ...msg);
 				process.exit(1);
+			}),
+			warn: fnc((...c) => {
+				let msg = c.map(e => (e.val instanceof Function)?e.val():e);
+				console.error("Warning:".yellow.bold, ...msg);
 			}),
 			tostr: fnc(x => ({type: "Str", val: () => objtostr(x)})),
 			write: fnc((...msgs) => {
@@ -317,7 +350,11 @@ class Walker {
 				for(let msg of msgs) process.stdout.write(msg.val?msg.val().toString():"Nonsense");
 				process.stdout.write("\n");
 			}),
+			export: { $$:true, type: "Fnc", val: ((n, x) => { this.exports[n.val] = this.walk(x); }) }
 		});
+		this.moduleName = moduleName;
+		this.exports = {}
+		this.loopingModules = [moduleName]
 	}
 	walk(n) {
 		//console.log("WALK!", n)
@@ -369,7 +406,7 @@ let ast = new Parser(src).parse();
 //let parser = 
 //while(parser.str.trim().length != 0) nodes.push(parser);
 //console.log(require('util').inspect(ast, false, null, true /* enable colors */)); // this was on line 69 at 15:15 12 of April, 2020.
-let wlk = new Walker();
+let wlk = new Walker("$main");
 let res = objtostr(wlk.walk(ast));
 if(!NO_OUTPUT) console.log(`${res}`);
 //for(node of nodes) wlk.walk(node);
