@@ -1,0 +1,10 @@
+(&
+	(declare + (Any Any)) (exp $+)
+	(declare - (Any Any)) (exp $-)
+	(declare * (Any Any)) (exp $*)
+	(declare / (Any Any)) (exp $/)
+	(declare > (Num Num)) (exp $>)
+	(declare < (Num Num)) (exp $<)
+	(declare <= (Num Num)) (exp $<=)
+	(declare >= (Num Num)) (exp $>=)
+)
