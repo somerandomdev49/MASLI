@@ -271,6 +271,14 @@ class Walker {
 					else this.env.setThis(n.val, l);
 				}
 			},
+			if: {
+				$$:true,type:"Fnc",
+				val: (test, then, otherwise) => {
+					let t = this.walk(test);
+					if(t.type == "Trh" && t.val.bind(this)() == true) { this.walk(then); }
+					else if(otherwise) { this.walk(otherwise); }
+				}
+			},
 			import: {
 				$$: true, type: "Fnc",
 				val: (...mpath) => {

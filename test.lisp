@@ -1,13 +1,14 @@
 (&
 	(import test2)
 	(decl abcde (Num Any))
-	(warn )
 	(defun
 		abcde
 		(a b)
 		(&
-			(write "Hai " a " + " b)
-			(+ a b)
+			(if (> a b)
+				(write "! " a " is greater than " b)
+				(+ a b)
+			)
 		)
 	)
 	(abcde
