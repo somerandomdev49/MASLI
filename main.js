@@ -254,6 +254,8 @@ const eqType = (a, b) => {
     else return true;
 };
 
+const sfnc = f => fnc(a => f(a.val.bind(this)()));
+
 let NO_OUTPUT = false;
 class Walker {
 	// setThis(name, value) {
@@ -405,7 +407,25 @@ class Walker {
 				for(let msg of msgs) process.stdout.write(msg.val?msg.val().toString():"Nonsense");
 				process.stdout.write("\n");
 			}),
-			export: { $$:true, type: "Fnc", val: ((n, x) => { this.exports[n.val] = this.walk(x); }) }
+			export: { $$:true, type: "Fnc", val: ((n, x) => { this.exports[n.val] = this.walk(x); }) },
+
+			
+			sin: fnc((a) => {Math.sin(a)}), // stdlib math trig
+			cos: fnc((a) => {Math.cos(a)}),
+			tan: fnc((a) => {Math.tan(a)}),
+			acos: sfnc(Math.acos),	
+			asin: sfnc(Math.asin),	
+			acosh: sfnc(Math.acosh),	
+			atan: sfnc(Math.atan),	
+			atan2: fnc((x, y) => Math.atan2(x.val(), y.val())),	
+			atanh: sfnc(Math.atanh()),
+			cosh: sfnc(Math.cosh),
+			sinh: sfnc(Math.sinh),
+			
+			floor: fnc((a) => {Math.floor(a)}), // stdlib math core
+			ceil: fnc((a) => {Math.ceil(a)}),
+
+
 		});
 		this.moduleName = moduleName;
 		this.exports = {}

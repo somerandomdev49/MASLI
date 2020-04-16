@@ -1,0 +1,13 @@
+(&
+    (declare sin (Num)) (exp $sin)
+    (declare cos (Num)) (exp $cos)
+    (declare tan (Num)) (exp $tan)
+    (declare acos (Num)) (exp $acos)
+    (declare asin (Num)) (exp $asin)
+    (declare acosh (Num)) (exp $acosh)
+    (declare atan (Num)) (exp $atan)
+    (declare atan2 (Num Num)) (exp $atan2)
+    (declare atanh (Num)) (exp $atanh)
+    (declare cosh (Num)) (exp $cosh)
+    (declare sinh (Num)) (exp $sinh)
+)
