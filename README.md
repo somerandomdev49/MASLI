@@ -12,6 +12,7 @@ a very simple thing with some types (not custom ones).
 Num - number
 Str - string
 Trh - boolean ("truth", because i want only 3 letters)
+Fnc - function
 Any - any type
 ```
 
@@ -28,7 +29,7 @@ Any - any type
 (eq <Any> <Any>) -> equality
 
 (defun <name> (<argument-names>) <code>) -> defines a function
-(decl <name> (<argument-types>)) -> declares function types (optional)
+(declare <name> (<argument-types>)) -> declares function types (optional) (name of the decl is $<name>)
 (let <type> <name> <value>) -> defines a variable
 (= <name> <value>) -> sets a variable (or a function, doesn't matter)
 (: <expr> <type>) -> returns true if types are equal
@@ -39,12 +40,21 @@ Any - any type
 (panic <msg>) -> pAnIcS wItH tHe mEsSaGe :O
 (tostr <expr>) -> returns colorful string representation of the object.
 (write <exprs>) -> writes all
-[no_output] -> makes sure that the final result is not printed. 
+[no_output] -> makes sure that the final result is not printed.
+
+(import <module-path>) -> imports the module (module-path is path of the file separated with spaces and no extension)
+(export <name> <value>) -> exports <value> with <name> (so it is visible when imported)
+(exp <id>) -> alias to (export <id> <id>)
 ```
 
-example can be fount in `test.lisp`.
+standard library contains only declarations, implementations are hard-coded. stdlib provides typechecking for std funcs.
+```lisp
+(import stdlib core core) -> core (std functions)
+(import stdlib math core) -> math stuff, +, -, >, >= and so on. (expected js errors)
+(import stdlib math strictcore) -> strict math, only numbers are allowed.
+```
+
+example can be found in `test.lisp`.
 
 ## TODO:
-comments (how?!?! i tried)<br>
-imports<br>
-custom types<br>
+normal type system<br>
