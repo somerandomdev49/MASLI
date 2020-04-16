@@ -45,6 +45,7 @@ const is_valid_id = c =>
 	// || c == '-' <- checked in lexer/parser.
 	|| c == '='
 	|| c == '#'
+	|| c == '$'
 	|| c == "&";
 
 const is_valid_num = c =>
@@ -73,7 +74,7 @@ function trim (s, c) {
 class Parser
 {
 	constructor(str) {
-		this.str = str;//str.replace(/(\;[^*]*)/g, '');
+		this.str = str.replace(/(\;.*$)/gm, '');
 		// let commentMode = false;
 		// let startIndex = 0;
 		// let endIndex = 0;
@@ -100,55 +101,65 @@ class Parser
 		//this.str = trim(this.str, "\t");
 		this.str = this.str.trim();
 	}
+	next() {
+		this.str = this.str.substr(1);
+	}
 	parseId(buf) {
 		if(!buf) buf = "";
 		while(is_valid_id(this.str[0]) || is_valid_num(this.str[0]))
-		{ buf += this.str[0]; this.str = this.str.substr(1); }
+		{ buf += this.str[0]; this.next(); }
+		this.trim();
 		return { type: 1, val: buf }
 	}
 	parseNum(buf) {
 		if(!buf) buf = "";
-		if(this.str[0] == '-') { buf += this.str[0]; this.str = this.str.substr(1); }
+		if(this.str[0] == '-') { buf += this.str[0]; this.next(); }
 		while(is_valid_num(this.str[0]))
-		{ buf += this.str[0]; this.str = this.str.substr(1); }
+		{ buf += this.str[0]; this.next(); }
 		if(this.str[0] == '.') {
-			buf += this.str[0]; this.str = this.str.substr(1);
+			buf += this.str[0]; this.next();
 			while(is_valid_num(this.str[0]))
-			{ buf += this.str[0]; this.str = this.str.substr(1); }
+			{ buf += this.str[0]; this.next(); }
 		}
+		this.trim();
 		return { type: 2, num: Number.parseFloat(buf.replace("_", "")) }
 	}
 	parse() {
 		this.trim();
 		if(this.str[0] == '(') {
 			this.trim();
-			this.str = this.str.substr(1);
+			this.next();
 			this.trim();
 			let exprs = []
-			while(this.str[0] != ')') { exprs.push(this.parse(this.str)); this.trim(); }
+			while(this.str[0] != ')')
+			{ this.trim(); 
+				exprs.push(this.parse()); 
+				this.trim(); }
 			if(this.str[0] != ')') { console.error("Expected ')'!"); process.exit(1); }
-			else this.str = this.str.substr(1);
+			else this.next();
 			return { type: 0, exprs }
 		}
 		if(this.str[0] == '[') {
 			this.trim();
-			this.str = this.str.substr(1);
+			this.next();
 			this.trim();
-			let attr = this.parse(this.str);
+			let attr = this.parse();
 			//while(this.str[0] != ']') { exprs.push(); this.trim(); }
 			if(this.str[0] != ']') { console.error("Expected ']'!"); process.exit(1); }
-			else this.str = this.str.substr(1);
+			else this.next();
 			return { type: 4, attr }
 		}
 		if(is_valid_id(this.str[0])) return this.parseId();
 		if(is_valid_num(this.str[0])) return this.parseNum();
 		if(this.str[0] == '-') {
-			this.str = this.str.substr(1);
+			this.next();
+			this.trim();
 			if(is_valid_id(this.str[0])) return this.parseId("-");
 			if(is_valid_num(this.str[0])) return this.parseNum("-");
+			else return this.parseId("-");
 		}
 		if(this.str[0] == '"') {
-			this.str = this.str.substr(1);
+			this.next();
 			let buf = "";
 			while(this.str[0] != '"')
 			{
@@ -167,12 +178,12 @@ class Parser
 					else throw new Error("Unknown escape sequence: " + this.str[0]);
 				}
 				else buf += this.str[0];
-				this.str = this.str.substr(1);
+				this.next();
 			}
-			this.str = this.str.substr(1);
+			this.next();
 			return { type: 3, str: buf }
 		}
-		throw new Error("What is this? " + this.str[0]);
+		throw new Error("What is this? '" + this.str + "'");
 	}
 }
 
@@ -285,7 +296,7 @@ class Walker {
 					//console.log("Import", ...mpath);
 					let path = "./" + mpath.map(x=>x.val).join("/") + ".lisp";
 					let mod = mpath.map(x=>x.val).join(" ");
-					console.log(mod, "in", this.loopingModules)
+					// console.log(mod, "in", this.loopingModules)
 					if(this.loopingModules.includes(mod)) { this.env.o.warn.val.bind(this)("Module is already imported in this system: (" + mod + ")"); return; }
 					//console.log("Import file", path);
 					this.loopingModules.push(mod);
@@ -305,6 +316,7 @@ class Walker {
 							if(obj[0] in this.env.o);
 							else this.env.o[obj[0]] = obj[1];
 						}
+						// console.log(this.env.o);
 					}
 				}
 			},
@@ -315,7 +327,7 @@ class Walker {
 					//console.log(args);
 					if(this.env.has("$" + name.val)) {
 						if(args.exprs.length != this.env.get("$" + name.val).length)
-						this.env.o.panic.val.bind(this)(`Argument count of (defun ${name.val} ...) does not equal the argument count of decl.`);
+						this.env.o.panic.val.bind(this)(`Argument count of (defun ${name.val} ...) does not equal the argument count of declare.`);
 					}
 					this.env.setThis(name.val, fnc((...callArgs) => {
 						if(args.exprs.length != callArgs.length) this.env.o.panic.val.bind(this)("Not enough arguments!");
@@ -331,7 +343,13 @@ class Walker {
 					//console.log(this.env);
 				}
 			},
-			decl: {
+			exp: {
+				$$: true, type: "Fnc",
+				val: (name) => {
+					this.env.o.export.val.bind(this)(name, name);
+				}
+			},
+			declare: {
 				$$: true, type: "Fnc",
 				val: (name, argtypes) => {
 					this.env.setThis("$" + name.val, argtypes.exprs);
@@ -344,7 +362,7 @@ class Walker {
 				}
 			},
 			panic: fnc((...c) => {
-				let msg = c.map(e => (e.val instanceof Function)?e.val():e);
+				let msg = c.map(e => (e?e.val instanceof Function:undefined)?e.val():e);
 				console.error("pAnIc:".red.bold, ...msg);
 				process.exit(1);
 			}),
@@ -374,10 +392,25 @@ class Walker {
 				//console.log("name -> ", q);
 				let a = this.walk(q);
 				if(!a || a.type != "Fnc")
-					this.env.o.panic.val.bind(this)(`object`, q.val, `not applicable!`);
+					this.env.o.panic.val.bind(this)(`object`, q.val, q, `not applicable!`);
 				//console.log("value -> ", a);
+				
 				if(!a.$$) {
-					return a.val.bind(this)(...n.exprs.slice(1).map(e => this.walk(e)));
+					let exprs = n.exprs.slice(1).map(e => this.walk(e));
+					if(this.env.has("$" + q.val)) {
+						if(exprs.length != this.env.get("$" + q.val).length)
+						this.env.o.panic.val.bind(this)(`Argument count of (${q.val} ...) does not equal the argument count of declare.`);
+					}
+					for(let i=0;i<exprs.length;i++) {
+						if(this.env.has("$" + q.val))
+						if(
+							(this.env.get("$" + q.val)[i].val != exprs[i].type) 
+							&& this.env.get("$" + q.val)[i].val != "Any"
+							) 
+						this.env.o.panic.val.bind(this)
+							("Types not compatible: " + this.env.get("$" + q.val)[i].val  + " <- " + exprs[i].type);
+					}
+					return a.val.bind(this)(...exprs);
 				} else {
 					//console.log("a.$$ = true")
 					return a.val.bind(this)(...n.exprs.slice(1))

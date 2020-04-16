@@ -1,4 +1,5 @@
 (&
+<<<<<<< HEAD
 	(import test2)
 	(decl abcde (Num Any))
 	(defun
@@ -25,4 +26,9 @@
 	(= x 5)
 	x
 	(meme 4 3)
+=======
+	(import stdlib core core)
+	(import stdlib math strictcore) ; strict math core, only numbers are allowed.
+	(+ 1 1)
+>>>>>>> d3ebccd04fbd100c53c47fcca44a530f678b5684
 )
