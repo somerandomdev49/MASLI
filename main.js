@@ -8,24 +8,24 @@
 const fs = require("fs");
 const util = require('util');
 const colors = require("colors");
-const objtostr = (o, lvl=0) => {
+const objtostr = (o, lvl=0, prop={stringsAsText: false}) => {
 	if(typeof(o) == "undefined") o = { type: "Nonsense", val: null };
 	if(typeof(o) == "null") o = { type: "Empty", val: null };
 	
 	let s = "";
-	if(o.type == "Num") s += `${o.val()}`.yellow.italic;
-	if(o.type == "Str") s += `"${o.val()}"`.green.italic;
-	if(o.type == "Fnc") s += '{ Function }'.blue.bold;
-	if(o.type == "Empty") s += '{ Empty }'.gray.italic;
-	if(o.type == "Nonsense") s += '{ Nonsense }'.grey.bold;
+	if(o.type == "Num") s += prop.stringsAsText?o.val():`${o.val()}`.yellow.italic;
+	if(o.type == "Str") s += prop.stringsAsText?o.val():`"${o.val()}"`.green.italic;
+	if(o.type == "Fnc") s += prop.stringsAsText?o.val():'{ Function }'.blue.bold;
+	if(o.type == "Empty") s += prop.stringsAsText?o.val():'{ Empty }'.gray.italic;
+	if(o.type == "Nonsense") s += prop.stringsAsText?o.val():'{ Nonsense }'.grey.bold;
 	if(o.type == "Arr" || o.type == "Map") {
 		//console.log("TYPE")  ("\t".repeat(lvl) + 
-		s +=("(").cyan.italic;
+		s += prop.stringsAsText?o.val():("(").cyan.italic;
 		let e = Object.entries(o.val);
 		for(let i=0;i<e.length-1;i++)
-			s += ("(".cyan.dim + e[i][0] + " " + objtostr(e[i][1], lvl+1) + ") ".cyan.dim);
-		s += ("(".cyan.dim + e[e.length-1][0] + " " + objtostr(e[e.length-1][1], lvl+1) + ")".cyan.dim);
-		s += (")").cyan.italic;
+			s += prop.stringsAsText?o.val():("(".cyan.dim + e[i][0] + " " + objtostr(e[i][1], lvl+1, prop) + ") ".cyan.dim);
+		s += prop.stringsAsText?o.val():("(".cyan.dim + e[e.length-1][0] + " " + objtostr(e[e.length-1][1], lvl+1, prop) + ")".cyan.dim);
+		s += prop.stringsAsText?o.val():(")").cyan.italic;
 	}
 	if(s.length == 0) return o.toString();
 	return s;
@@ -104,9 +104,9 @@ class Parser
 	next() {
 		this.str = this.str.substr(1);
 	}
-	parseId(buf) {
+	parseId(buf, noMinus=true) {
 		if(!buf) buf = "";
-		while(is_valid_id(this.str[0]) || is_valid_num(this.str[0]))
+		while(is_valid_id(this.str[0]) || is_valid_num(this.str[0]) || (this.str[0] == '-'))
 		{ buf += this.str[0]; this.next(); }
 		this.trim();
 		return { type: 1, val: buf }
@@ -254,16 +254,23 @@ const eqType = (a, b) => {
     else return true;
 };
 
-const sfnc = f => fnc(a => f(a.val.bind(this)()));
+const sfnc = f => fnc(a => val("Num", f(a.val.bind(this)())));
 
-let NO_OUTPUT = false;
+
 class Walker {
 	// setThis(name, value) {
 	// 	let t = Reflect.get(this.env, "setThis", this.env);
 	// 	console.log()
 	// 	t(name, value);
 	// }
+
 	constructor(moduleName) {
+		
+		this.NO_OUTPUT = false;
+		this.__STDLIB_LIB_ONLY = false;//preprocessorString.match(/(\[a-zA-Z_0-9\+-\=\/\*\$\])/gm).includes("__stdlib_lib_only");
+		
+		
+
 		this.env = new Scope({ // $$ means no execution.
 			"+": fnc((a, b) => {
 				//console.log("add ", a.val(), ' ', b);
@@ -320,6 +327,17 @@ class Walker {
 					else if(otherwise) { this.walk(otherwise); }
 				}
 			},
+			switch: {
+				$$: true, type: "Fnc",
+				val: (...cases) => {
+					console.log(cases)
+					for(let c of cases) {
+						console.log(c)
+						if(c.exprs[0].val == "otherwise") return this.walk(c.exprs[1]);
+						if(this.walk(c.exprs[0]).val.bind(this)()) return this.walk(c.exprs[1]);
+					}
+				}
+			},
 			import: {
 				$$: true, type: "Fnc",
 				val: (...mpath) => {
@@ -335,7 +353,7 @@ class Walker {
 						//console.log("IMPORT!")
 						let filedata = fs.readFileSync(path).toString();
 						//console.log(filedata);
-						let w = new Walker(mod);
+						let w = new Walker(mod, filedata);
 						w.loopingModules = [...this.loopingModules];
 						//w.loopingModules.push(this.moduleName);
 						//console.log("WALK".blue.bold);
@@ -393,7 +411,7 @@ class Walker {
 				}
 			},
 			panic: fnc((...c) => {
-				let msg = c.map(e => (e?e.val instanceof Function:undefined)?e.val():e);
+				let msg = c.map(e => objtostr(e, 0, {stringsAsText: true}));
 				console.error("pAnIc:".red.bold, ...msg);
 				process.exit(1);
 			}),
@@ -404,28 +422,27 @@ class Walker {
 			tostr: fnc(x => ({type: "Str", val: () => objtostr(x)})),
 			write: fnc((...msgs) => {
 				//process.stdout.write("LANGUAGE OUTPUT: ".red.bold);
-				for(let msg of msgs) process.stdout.write(msg.val?msg.val().toString():"Nonsense");
+				for(let msg of msgs) process.stdout.write(objtostr(msg, 0, {stringsAsText: true}));
 				process.stdout.write("\n");
 			}),
 			export: { $$:true, type: "Fnc", val: ((n, x) => { this.exports[n.val] = this.walk(x); }) },
 
-			
-			sin: fnc((a) => {Math.sin(a)}), // stdlib math trig
-			cos: fnc((a) => {Math.cos(a)}),
-			tan: fnc((a) => {Math.tan(a)}),
+			"string-trim": fnc(s => s.val().trim()),
+
+			sin: fnc((a) => val("Num", Math.sin(a.val.bind(this)()))), // stdlib math trig
+			cos: fnc((a) => val("Num", Math.cos(a.val.bind(this)()))),
+			tan: fnc((a) => val("Num", Math.tan(a.val.bind(this)()))),
 			acos: sfnc(Math.acos),	
 			asin: sfnc(Math.asin),	
 			acosh: sfnc(Math.acosh),	
 			atan: sfnc(Math.atan),	
-			atan2: fnc((x, y) => Math.atan2(x.val(), y.val())),	
+			atan2: fnc((x, y) => val("Num", Math.atan2(x.val(), y.val()))),	
 			atanh: sfnc(Math.atanh()),
 			cosh: sfnc(Math.cosh),
 			sinh: sfnc(Math.sinh),
 			
 			floor: fnc((a) => {Math.floor(a)}), // stdlib math core
 			ceil: fnc((a) => {Math.ceil(a)}),
-
-
 		});
 		this.moduleName = moduleName;
 		this.exports = {}
@@ -441,7 +458,8 @@ class Walker {
 				//console.log("name -> ", q);
 				let a = this.walk(q);
 				if(!a || a.type != "Fnc")
-					this.env.o.panic.val.bind(this)(`object`, q.val, q, `not applicable!`);
+					//this.env.o.panic.val.bind(this)
+					console.error(`object`, q.val, q, `not applicable!`);
 				//console.log("value -> ", a);
 				
 				if(!a.$$) {
@@ -490,7 +508,18 @@ class Walker {
 		}
 		if(n.type == 4) {
 			//console.log(n.attr.val == "no_output")
-			if(n.attr.val == "no_output") NO_OUTPUT = true;
+			if(n.attr.val == "no_output") this.NO_OUTPUT = true;
+			if(n.attr.val == "__stdlib_lib_only") this.__STDLIB_LIB_ONLY = /*this.NO_OUTPUT = */true;
+			if(n.attr.val == "__stdlib_math_trig_pi") return {type: "Num", val: () => Math.PI};
+			if(n.attr.val == "__stdlib_math_trig_e") return {type: "Num", val: () => Math.E};
+			if(n.attr.val == "__stdlib_math_trig_sqrt1_2") return {type: "Num", val: () => Math.SQRT1_2};
+			if(n.attr.val == "__stdlib_math_trig_sqrt2") return {type: "Num", val: () => Math.SQRT2};
+			if(n.attr.val == "__stdlib_math_trig_ln10") return {type: "Num", val: () => Math.LN10};
+			if(n.attr.val == "__stdlib_math_trig_ln2") return {type: "Num", val: () => Math.LN2};
+			if(n.attr.val == "__stdlib_math_trig_log2e") return {type: "Num", val: () => Math.LOG2E};
+			if(n.attr.val == "__stdlib_math_trig_log10e") return {type: "Num", val: () => Math.LOG10E};
+			if(this.__STDLIB_LIB_ONLY && this.moduleName == "$main")
+				this.env.o.panic.val.bind(this)("Cannot run a library!");
 			return {type: "$ATTR", val: () => n.attr.val};
 		}
 		if(n.type = 5) {
@@ -504,9 +533,11 @@ let ast = new Parser(src).parse();
 //let parser = 
 //while(parser.str.trim().length != 0) nodes.push(parser);
 //console.log(require('util').inspect(ast, false, null, true /* enable colors */)); // this was on line 69 at 15:15 12 of April, 2020.
-let wlk = new Walker("$main");
-let res = objtostr(wlk.walk(ast));
-if(!NO_OUTPUT) console.log(`${res}`);
+let wlk = new Walker("$main", src);
+let res = undefined;
+
+res = wlk.walk(ast);
+if(!wlk.NO_OUTPUT) process.stdout.write(objtostr(res) + "\n");
 //for(node of nodes) wlk.walk(node);
 
 //console.log("=============================");

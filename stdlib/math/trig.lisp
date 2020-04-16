@@ -1,4 +1,5 @@
 (&
+	[__stdlib_lib_only]
     (declare sin (Num)) (exp $sin)
     (declare cos (Num)) (exp $cos)
     (declare tan (Num)) (exp $tan)
@@ -10,4 +11,12 @@
     (declare atanh (Num)) (exp $atanh)
     (declare cosh (Num)) (exp $cosh)
     (declare sinh (Num)) (exp $sinh)
+	(let Num PI [__stdlib_math_trig_pi]) (exp PI)
+	(let Num E [__stdlib_math_trig_e]) (exp E)
+	(let Num SQRT1_2 [__stdlib_math_trig_sqrt1_2]) (exp SQRT1_2)
+	(let Num SQRT2 [__stdlib_math_trig_sqrt2]) (exp SQRT2)
+	(let Num LN10 [__stdlib_math_trig_ln10]) (exp LN10)
+	(let Num LN2 [__stdlib_math_trig_ln2]) (exp LN2)
+	(let Num LOG2E [__stdlib_math_trig_log2e]) (exp LOG2E)
+	(let Num LOG10E [__stdlib_math_trig_log10e]) (exp LOG10E)
 )
