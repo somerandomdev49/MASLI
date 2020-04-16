@@ -150,6 +150,14 @@ class Parser
 			return { type: 4, attr }
 		}
 		if(is_valid_id(this.str[0])) return this.parseId();
+		if(this.str[0] == '.') {
+			this.next();
+			if(!this.str[0] == '.') { console.error("Expected '.'!"); process.exit(); }
+			this.next();
+			if(!this.str[0] == '.') { console.error("Expected '.'!"); process.exit(); }
+			this.next();
+			return { type: 5, args: this.parse() };
+		}
 		if(is_valid_num(this.str[0])) return this.parseNum();
 		if(this.str[0] == '-') {
 			this.next();
@@ -226,6 +234,26 @@ class Scope {
 // 			set: (t, p, v, r) => Reflect.get(t, "set", r).bind(t)(p, v)
 // 		}
 // 	)
+
+const coreTypesSignatures = {
+    Cmp:   {$$: false}, //=> ( ...Type )
+    Fnc:   {$$: false}, //=> Type -> Type
+    Arr:   {$$: false}, //=> [ ...T ], where T - Type
+    Num:   {$$: true},  //=> Data
+    Str:   {$$: true},  //=> Data
+    Trh:   {$$: true},  //=> Data
+}
+
+// Please help with type system.
+
+const eqType = (a, b) => {
+    if(a.type != b.type) return false;
+	if(a.type == "Cmp") { if(a.val.length != b.val.length) return a.val.every((v, i) => v == b.val[i]); }
+	if(a.type == "Fnc") { return eqType(a.val.a, b.val.a) && eqType(a.val.b, b.val.b); }
+	if(a.type == "Arr") { return eqType(a.val.type, b.val.type); }
+    else return true;
+};
+
 let NO_OUTPUT = false;
 class Walker {
 	// setThis(name, value) {
@@ -334,8 +362,9 @@ class Walker {
 						let walker = new Walker(moduleName); walker.env.parent = this.env;
 						for(let i=0;i<args.exprs.length;i++) {
 							if(this.env.has("$" + name.val))
-							if((this.env.get("$" + name.val)[i].val != callArgs[i].type) && this.env.get("$" + name.val)[i].val != "Any") 
-							this.env.o.panic.val.bind(this)("Types not compatible: " + this.env.get("$" + name.val)[i].val  + " <- " + callArgs[i].type);
+								if(!this.walk(this.env.get("$" + name.val)[i].val != callArgs[i].type)
+									&& this.env.get("$" + name.val)[i].val != "Any") 
+								this.env.o.panic.val.bind(this)("Types not compatible: " + this.env.get("$" + name.val)[i].val  + " <- " + callArgs[i].type);
 							walker.env.setThis(args.exprs[i].val, callArgs[i]);
 						}
 						return walker.walk(val);
@@ -396,19 +425,24 @@ class Walker {
 				//console.log("value -> ", a);
 				
 				if(!a.$$) {
+					let decl = this.env.get("$" + q.val);
 					let exprs = n.exprs.slice(1).map(e => this.walk(e));
 					if(this.env.has("$" + q.val)) {
-						if(exprs.length != this.env.get("$" + q.val).length)
+						if(!decl.some(l => l.type == 5))
+						if(exprs.length != decl.length)
 						this.env.o.panic.val.bind(this)(`Argument count of (${q.val} ...) does not equal the argument count of declare.`);
 					}
+					let mulArgs = false; let mulArgsIdx = -1;
 					for(let i=0;i<exprs.length;i++) {
-						if(this.env.has("$" + q.val))
-						if(
-							(this.env.get("$" + q.val)[i].val != exprs[i].type) 
-							&& this.env.get("$" + q.val)[i].val != "Any"
-							) 
-						this.env.o.panic.val.bind(this)
-							("Types not compatible: " + this.env.get("$" + q.val)[i].val  + " <- " + exprs[i].type);
+						if(this.env.has("$" + q.val)) {
+							if(!mulArgs && decl[i].type == 5) { mulArgs = true; mulArgsIdx = i; }
+							if(
+								((mulArgs?decl[mulArgsIdx].args.val:decl[i].val) != exprs[i].type) 
+								&& ((mulArgs?decl[mulArgsIdx].args.val:decl[i].val) != "Any")
+								) 
+							this.env.o.panic.val.bind(this)
+								("Types not compatible: " + (mulArgs?decl[mulArgsIdx].args.val:decl[i].val)  + " <- " + exprs[i].type);
+						}
 					}
 					return a.val.bind(this)(...exprs);
 				} else {
@@ -438,6 +472,9 @@ class Walker {
 			//console.log(n.attr.val == "no_output")
 			if(n.attr.val == "no_output") NO_OUTPUT = true;
 			return {type: "$ATTR", val: () => n.attr.val};
+		}
+		if(n.type = 5) {
+			return { type: "MulArgs", val: n.val };
 		}
 	}
 }
