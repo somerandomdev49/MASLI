@@ -1,6 +1,8 @@
 # Mike's Awful And Slow Lisp Interpreter. (MASLI)
 (made in *javascript*)
 
+for now user-defined macros aren't a thing, but they can be defined in code using attributes. (or not? idk) :)
+
 a very simple thing with some types (not custom ones).
 
 > don't look in `main.js`
