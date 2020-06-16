@@ -264,6 +264,8 @@ class Walker {
 	// 	t(name, value);
 	// }
 	constructor(moduleName) {
+		this.NO_OUTPUT = false
+		this.__STDLIB_LIB_ONLY = false
 		this.env = new Scope({ // $$ means no execution.
 			"+": fnc((a, b) => {
 				//console.log("add ", a.val(), ' ', b);
@@ -490,7 +492,18 @@ class Walker {
 		}
 		if(n.type == 4) {
 			//console.log(n.attr.val == "no_output")
-			if(n.attr.val == "no_output") NO_OUTPUT = true;
+			if(n.attr.val == "no_output") this.NO_OUTPUT = true;
+			if(n.attr.val == "__stdlib_lib_only") this.__STDLIB_LIB_ONLY = /*this.NO_OUTPUT = */true;
+			if(n.attr.val == "__stdlib_math_trig_pi") return {type: "Num", val: () => Math.PI};
+			if(n.attr.val == "__stdlib_math_trig_e") return {type: "Num", val: () => Math.E};
+			if(n.attr.val == "__stdlib_math_trig_sqrt1_2") return {type: "Num", val: () => Math.SQRT1_2};
+			if(n.attr.val == "__stdlib_math_trig_sqrt2") return {type: "Num", val: () => Math.SQRT2};
+			if(n.attr.val == "__stdlib_math_trig_ln10") return {type: "Num", val: () => Math.LN10};
+			if(n.attr.val == "__stdlib_math_trig_ln2") return {type: "Num", val: () => Math.LN2};
+			if(n.attr.val == "__stdlib_math_trig_log2e") return {type: "Num", val: () => Math.LOG2E};
+			if(n.attr.val == "__stdlib_math_trig_log10e") return {type: "Num", val: () => Math.LOG10E};
+			if(this.__STDLIB_LIB_ONLY && this.moduleName == "$main")
+				this.env.o.panic.val.bind(this)("Cannot run a library!");
 			return {type: "$ATTR", val: () => n.attr.val};
 		}
 		if(n.type == 5) {
@@ -506,7 +519,7 @@ let ast = new Parser(src).parse();
 //console.log(require('util').inspect(ast, false, null, true /* enable colors */)); // this was on line 69 at 15:15 12 of April, 2020.
 let wlk = new Walker("$main");
 let res = objtostr(wlk.walk(ast));
-if(!NO_OUTPUT) console.log(`${res}`);
+if(!wlk.NO_OUTPUT) console.log(`${res}`);
 //for(node of nodes) wlk.walk(node);
 
 //console.log("=============================");
