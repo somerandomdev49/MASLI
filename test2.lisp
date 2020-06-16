@@ -2,7 +2,7 @@
     (defun meme (a b) (&(write "MEMES!")(+ a b)))
     (export meme meme)
 	(declare abcde (Num Any))
-	(warn )
+	(warn "huh")
 	(defun
 		abcde
 		(a b)

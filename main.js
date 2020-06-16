@@ -364,7 +364,7 @@ class Walker {
 						let walker = new Walker(moduleName); walker.env.parent = this.env;
 						for(let i=0;i<args.exprs.length;i++) {
 							if(this.env.has("$" + name.val))
-								if(!this.walk(this.env.get("$" + name.val)[i].val != callArgs[i].type)
+								if(this.env.get("$" + name.val)[i].val != callArgs[i].type
 									&& this.env.get("$" + name.val)[i].val != "Any") 
 								this.env.o.panic.val.bind(this)("Types not compatible: " + this.env.get("$" + name.val)[i].val  + " <- " + callArgs[i].type);
 							walker.env.setThis(args.exprs[i].val, callArgs[i]);
@@ -493,7 +493,7 @@ class Walker {
 			if(n.attr.val == "no_output") NO_OUTPUT = true;
 			return {type: "$ATTR", val: () => n.attr.val};
 		}
-		if(n.type = 5) {
+		if(n.type == 5) {
 			return { type: "MulArgs", val: n.val };
 		}
 	}
